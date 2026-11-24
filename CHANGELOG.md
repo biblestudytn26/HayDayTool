@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.19.0] - 2026-11-24
+
+### Changed
+- **Profit tab is now a true-margin calculator.** Replaced the coin/hr (auction-
+  style) ranking with net margin per good: sell price minus the sell value of
+  its ingredients. Sort by margin, margin/hr, margin %, or price; filter by
+  building or search; toggle raw goods. Tap any good for a full ingredient
+  cost breakdown.
+
 ## [2.18.0] - 2026-11-24
 
 ### Changed

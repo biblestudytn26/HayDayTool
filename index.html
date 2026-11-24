@@ -122,6 +122,17 @@
     font-size:21px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
   .addbtn:active{background:var(--leaf-d);transform:scale(.92)}
   .prof-pos{color:var(--ok)} .prof-neg{color:var(--danger)}
+  .mg-item{border-bottom:1px solid var(--line)}
+  .mg-item:last-child{border-bottom:0}
+  .mg-head{cursor:pointer;border-bottom:0}
+  .mg-caret{display:inline-block;font-size:10px;color:var(--muted);transition:transform .15s}
+  .mg-caret.open{transform:rotate(90deg)}
+  .mg-bd{padding:2px 2px 12px 50px;display:flex;flex-direction:column;gap:5px}
+  .mg-bd-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .mg-bd-row .mg-bd-nm{flex:1;min-width:0;color:var(--ink)}
+  .mg-bd-val{font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .mg-bd-tot{border-top:1px dashed var(--line2);padding-top:5px}
+  .mg-bd-margin .mg-bd-nm,.mg-bd-margin .mg-bd-val{font-weight:800}
   .empty{padding:34px 12px;text-align:center;color:var(--muted);font-size:14px}
 
   /* Checklist summary */
@@ -351,16 +362,26 @@
   <!-- PROFIT -->
   <section id="tab-profit" class="hide">
     <div class="card">
-      <h2>Best profit per hour</h2>
-      <p class="sub">Rank items by profit/hour. Narrow by level range or machine — e.g. the best crop you can grow up to level 15.</p>
+      <h2>💰 Profit — true margin</h2>
+      <p class="sub">What each good really nets: its sell price minus the sell value of the ingredients it's made from. Tap a row for the full breakdown.</p>
       <div class="row">
-        <label class="fld">Show top<input type="number" id="pLimit" value="15" min="1" max="100"></label>
-        <label class="fld">Min level<input type="number" id="pMin" value="1" min="1"></label>
-        <label class="fld">Max level<input type="number" id="pMax" placeholder="any" min="1"></label>
-        <label class="fld" style="flex:1;min-width:150px">Machine
-          <select id="pMachine"><option value="">Any machine</option></select>
+        <div class="ac search" style="flex:1 1 160px;min-width:140px">
+          <input id="pQ" type="search" autocomplete="off" placeholder="Find a good…" style="width:100%">
+        </div>
+        <label class="fld" style="flex:1;min-width:150px">Sort
+          <select id="pSort">
+            <option value="margin|-1">Margin (high→low)</option>
+            <option value="mph|-1">Margin / hour</option>
+            <option value="marginPct|-1">Margin %</option>
+            <option value="price|-1">Sell price</option>
+            <option value="margin|1">Margin (low→high)</option>
+          </select>
+        </label>
+        <label class="fld" style="flex:1;min-width:150px">Building
+          <select id="pMachine"><option value="">Any building</option></select>
         </label>
       </div>
+      <label class="invtoggle"><input type="checkbox" id="pRawToo"> Include raw goods (no ingredient cost)</label>
     </div>
     <div class="card">
       <div class="list" id="profitBody"></div>
@@ -618,6 +639,7 @@ for (const id in RECIPES) NAME_TO_ID[RECIPES[id].name.toLowerCase()] = id;
 const RAW_MACHINES = new Set(["crops", "trees & bushes", "animal products"]);
 let NAME_MACHINE = {};   // product name -> machine, from live data
 let NAME_IMG = {};       // product name (lowercase) -> thumbnail filename, from the wiki
+let NAME_PRICE = {};     // product name (lowercase) -> max sell price
 // Returns an <img> thumbnail tag for a product name, or "" if we have no image.
 function thumb(name, cls){
   const f = NAME_IMG[String(name||"").toLowerCase()];
@@ -728,7 +750,8 @@ function setStatus(html, warn){
 function onData(){
   NAME_MACHINE = {};
   NAME_IMG = {};
-  for(const i of DATA){ NAME_MACHINE[i.product.toLowerCase()] = i.machine; if(i.img) NAME_IMG[i.product.toLowerCase()] = i.img; }
+  NAME_PRICE = {};
+  for(const i of DATA){ const k=i.product.toLowerCase(); NAME_MACHINE[k] = i.machine; if(i.img) NAME_IMG[k] = i.img; if(typeof i.price==="number") NAME_PRICE[k] = i.price; }
   ITEM_NAMES = DATA.map(i=>i.product).sort((a,b)=>a.localeCompare(b));
   buildNameIndex();
   fillMachineSelects();
@@ -836,27 +859,63 @@ function renderBrowse(){
 }
 
 /* ----------------------------- PROFIT ------------------------------------- */
+// True margin = sell price − sell value of the direct ingredients it's made from.
+const priceOf = name => { const p = NAME_PRICE[String(name||"").toLowerCase()]; return (typeof p==="number") ? p : 0; };
+function marginOf(d){
+  const price = (typeof d.price==="number") ? d.price : null;
+  const id = NAME_TO_ID[d.product.toLowerCase()];
+  const rec = id && RECIPES[id];
+  const ing = (rec && Array.isArray(rec.ing)) ? rec.ing : [];
+  let cost = 0; const bd = [];
+  for(const g of ing){ const q = g.q||1; const each = priceOf(g.name); cost += each*q; bd.push({ name:g.name, q, each, sub:each*q }); }
+  const margin = (price==null) ? null : (price - cost);
+  const marginPct = (price) ? (margin/price*100) : null;
+  const mph = (margin!=null && d.time_min) ? (margin/(d.time_min/60)) : null;
+  return { margin, marginPct, mph, price, cost, bd, crafted: ing.length>0 };
+}
+function profitRow(d, m, n){
+  const cls = profCls(m.margin);
+  const bd = m.bd.length
+    ? `<div class="mg-bd hide">`
+      + m.bd.map(b=>`<div class="mg-bd-row">${thumb(b.name,"thumb-xs")}<span class="mg-bd-nm">${b.q}× ${esc(b.name)}</span><span class="mg-bd-val">${profNum(b.sub)}</span></div>`).join("")
+      + `<div class="mg-bd-row mg-bd-tot"><span class="mg-bd-nm">Sell price</span><span class="mg-bd-val">${profNum(m.price)}</span></div>`
+      + `<div class="mg-bd-row mg-bd-tot"><span class="mg-bd-nm">− Ingredient cost</span><span class="mg-bd-val">${profNum(m.cost)}</span></div>`
+      + `<div class="mg-bd-row mg-bd-tot mg-bd-margin"><span class="mg-bd-nm">= Margin</span><span class="mg-bd-val ${cls}">${profNum(m.margin)}</span></div></div>`
+    : "";
+  const meta = m.crafted
+    ? `sells ${profNum(m.price)} − ingr ${profNum(m.cost)}${m.mph!=null?` · ${profNum(m.mph)}/hr`:""} · Lv ${d.level??"—"} · ${fmtTime(d.time_min)}`
+    : `raw · sells ${profNum(m.price)} · Lv ${d.level??"—"}`;
+  return `<div class="mg-item">
+    <div class="item-row mg-head" data-mg="1">
+      <div class="ir-rank">${n+1}</div>
+      ${thumb(d.product)}
+      <div class="ir-main">
+        <div class="ir-name">${esc(d.product)}${m.bd.length?` <span class="mg-caret">▸</span>`:""}</div>
+        <div class="ir-meta">${meta}</div>
+      </div>
+      <div class="ir-prof ${cls}">${profNum(m.margin)}<small>margin</small></div>
+    </div>
+    ${bd}
+  </div>`;
+}
 function renderProfit(){
   if(!DATA.length) return;
-  const limit = +$("#pLimit").value || 15;
-  const min = +$("#pMin").value || 1;
-  const max = $("#pMax").value ? +$("#pMax").value : Infinity;
-  const mac = $("#pMachine").value.toLowerCase();
-  let rows = DATA.filter(i=>typeof i.profit_per_hour==="number" && i.level>=min && i.level<=max);
-  if(mac) rows = rows.filter(i=>i.machine.toLowerCase()===mac);
-  rows.sort((a,b)=>b.profit_per_hour-a.profit_per_hour);
-  rows = rows.slice(0, limit);
-  $("#profitBody").innerHTML = rows.map((i,n)=>`
-    <div class="item-row">
-      <div class="ir-rank">${n+1}</div>
-      ${thumb(i.product)}
-      <div class="ir-main">
-        <div class="ir-name">${esc(i.product)}</div>
-        <div class="ir-meta"><span class="chip">${esc(i.machine)}</span> · Lv ${i.level??"—"} · ${fmtNum(i.xp_per_hour)} xp/hr</div>
-      </div>
-      <div class="ir-prof ${profCls(i.profit_per_hour)}">${profNum(i.profit_per_hour)}<small>coin/hr</small></div>
-      <button class="addbtn add" data-p="${esc(i.product)}" aria-label="Add to list">+</button>
-    </div>`).join("") || `<div class="empty">No items in that range.</div>`;
+  const q   = ($("#pQ") ? $("#pQ").value : "").trim().toLowerCase();
+  const [key, dirS] = (($("#pSort") ? $("#pSort").value : "") || "margin|-1").split("|");
+  const dir = +dirS || -1;
+  const mac = ($("#pMachine") ? $("#pMachine").value : "").toLowerCase();
+  const rawToo = $("#pRawToo") ? $("#pRawToo").checked : false;
+  let rows = DATA.map(d=>({ d, m:marginOf(d) }))
+    .filter(x=> x.m.margin!=null)
+    .filter(x=> rawToo ? true : x.m.crafted)
+    .filter(x=> !mac || x.d.machine.toLowerCase()===mac)
+    .filter(x=> !q || x.d.product.toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    const av = (a.m[key]==null?-Infinity:a.m[key]), bv = (b.m[key]==null?-Infinity:b.m[key]);
+    return (av-bv)*dir || a.d.product.localeCompare(b.d.product);
+  });
+  rows = rows.slice(0, 150);
+  $("#profitBody").innerHTML = rows.map((x,n)=>profitRow(x.d, x.m, n)).join("") || `<div class="empty">No goods match.</div>`;
 }
 
 /* ----------------------------- UNLOCKS ------------------------------------ */
@@ -1807,7 +1866,13 @@ $("#toggleAllGroups").addEventListener("click", ()=>{
   renderBrowse();
 });
 // profit controls
-["#pLimit","#pMin","#pMax","#pMachine"].forEach(s=>$(s).addEventListener("input", renderProfit));
+["#pQ","#pSort","#pMachine","#pRawToo"].forEach(s=>{ const el=$(s); if(el){ el.addEventListener("input", renderProfit); el.addEventListener("change", renderProfit); } });
+$("#profitBody").addEventListener("click", e=>{
+  const head = e.target.closest(".mg-head"); if(!head) return;
+  const bd = head.parentElement.querySelector(".mg-bd"); if(!bd) return;
+  bd.classList.toggle("hide");
+  const caret = head.querySelector(".mg-caret"); if(caret) caret.classList.toggle("open");
+});
 // unlocks
 $("#uAt").addEventListener("click", ()=>renderUnlocks("at"));
 $("#uUpto").addEventListener("click", ()=>renderUnlocks("upto"));
