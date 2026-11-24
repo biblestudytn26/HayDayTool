@@ -385,9 +385,69 @@
   </section>
 
   <!-- PLANNER -->
-  <section id="tab-planner" class="hide">
+  <section id="tab-work" class="hide">
+
     <div class="card">
-      <h2>Recipe planner</h2>
+      <h2>🏚️🌾 Barn &amp; Silo</h2>
+      <p class="sub">Set your storage sizes once — everything below uses this space math.</p>
+      <div class="summary" id="summary"></div>
+      <div class="caps">
+        <div class="cap-grp">
+          <div class="cap-h">🏚️ Barn</div>
+          <label class="fld">Size<input type="number" id="capBarn" min="0" placeholder="e.g. 1000"></label>
+          <label class="fld">Full now<input type="number" id="fillBarn" min="0" placeholder="0"></label>
+        </div>
+        <div class="cap-grp">
+          <div class="cap-h">🌾 Silo</div>
+          <label class="fld">Size<input type="number" id="capSilo" min="0" placeholder="e.g. 1000"></label>
+          <label class="fld">Full now<input type="number" id="fillSilo" min="0" placeholder="0"></label>
+        </div>
+      </div>
+      <label class="invtoggle"><input type="checkbox" id="useInvFill"> “Full now” comes from my inventory</label>
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm" id="saveCap">Save sizes</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📦 What I have</h2>
+      <p class="sub">Snap your barn and silo, then let AI read them straight into your inventory. Saved in this browser.</p>
+      <div class="shots" id="shotStrip"></div>
+      <input type="file" id="shotInput" accept="image/*" multiple hidden>
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm primary" id="invReadAll">✨ Read all with AI</button>
+        <button class="btn sm ghost" id="aiSetupBtn">Set up</button>
+        <span class="sub" id="aiStateHint" style="flex:1;margin:0;align-self:center"></span>
+      </div>
+      <div class="sv-status" id="invAiStatus" style="margin-top:6px"></div>
+      <div id="invReview"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:10px">Add a good by hand</h2>
+      <div class="summary" id="invSummary"></div>
+      <div class="row">
+        <div class="ac search" style="flex:1 1 180px;min-width:140px">
+          <input id="invItem" type="search" autocomplete="off" placeholder="Add a good you have — e.g. Corn" style="width:100%">
+          <div class="ac-menu hide" id="invItemMenu"></div>
+        </div>
+        <label class="fld">Have<input type="number" id="invAmt" value="1" min="1"></label>
+        <button class="btn primary" id="invAddBtn">+ Add</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="sub" style="flex:1;margin:0;align-self:center">Totals flow into your List's space math automatically.</span>
+        <button class="btn sm" id="invCopy">📋 Copy</button>
+        <button class="btn sm ghost" id="invClear">Clear</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="invItems"></div>
+      <div class="empty" id="invEmpty">No items yet. Add screenshots above for reference, then log what's in your barn &amp; silo.</div>
+    </div>
+  
+    <div class="card">
+      <h2>🧮 What to make</h2>
       <p class="sub">Add what you want to make and see every raw ingredient still to gather — it subtracts what's already in your inventory — with the barn &amp; silo space it takes.</p>
       <div class="row">
         <div class="ac search" style="flex:1 1 180px;min-width:140px">
@@ -413,56 +473,10 @@
     <div class="card" id="planResultCard">
       <div id="planResult"><div class="empty">Add something to make above.</div></div>
     </div>
-  </section>
-
-  <!-- LIST -->
-  <!-- INVENTORY -->
-  <section id="tab-inventory" class="hide">
+  
     <div class="card">
-      <h2>My inventory</h2>
-      <p class="sub">Snap your barn and silo, then let AI read them straight into your inventory. Saved in this browser.</p>
-      <div class="shots" id="shotStrip"></div>
-      <input type="file" id="shotInput" accept="image/*" multiple hidden>
-      <div class="row" style="margin-top:10px">
-        <button class="btn sm primary" id="invReadAll">✨ Read all with AI</button>
-        <button class="btn sm ghost" id="aiSetupBtn">Set up</button>
-        <span class="sub" id="aiStateHint" style="flex:1;margin:0;align-self:center"></span>
-      </div>
-      <div class="sv-status" id="invAiStatus" style="margin-top:6px"></div>
-      <div id="invReview"></div>
-    </div>
-
-    <div class="card">
-      <h2 style="margin-bottom:10px">What I have</h2>
-      <div class="summary" id="invSummary"></div>
-      <div class="row">
-        <div class="ac search" style="flex:1 1 180px;min-width:140px">
-          <input id="invItem" type="search" autocomplete="off" placeholder="Add a good you have — e.g. Corn" style="width:100%">
-          <div class="ac-menu hide" id="invItemMenu"></div>
-        </div>
-        <label class="fld">Have<input type="number" id="invAmt" value="1" min="1"></label>
-        <button class="btn primary" id="invAddBtn">+ Add</button>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <span class="sub" style="flex:1;margin:0;align-self:center">Totals flow into your List's space math automatically.</span>
-        <button class="btn sm" id="invCopy">📋 Copy</button>
-        <button class="btn sm ghost" id="invClear">Clear</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div id="invItems"></div>
-      <div class="empty" id="invEmpty">No items yet. Add screenshots above for reference, then log what's in your barn &amp; silo.</div>
-    </div>
-  </section>
-
-  <section id="tab-list" class="hide">
-    <div class="card">
-      <h2>Needed-goods checklist</h2>
-      <p class="sub">Add what you need, tick it off as you collect it, and watch your barn &amp; silo space. Saved in this browser.</p>
-
-      <div class="summary" id="summary"></div>
-
+      <h2>✅ Needed-goods checklist</h2>
+      <p class="sub">Add what you need and tick it off as you collect it. Uses your Barn &amp; Silo space above.</p>
       <div class="row" style="margin-bottom:10px">
         <div class="ac search" style="flex:1 1 180px;min-width:140px">
           <input id="addItem" type="search" autocomplete="off" placeholder="Add a good — e.g. Bread" style="width:100%">
@@ -471,22 +485,6 @@
         </div>
         <label class="fld">Amount<input type="number" id="addAmt" value="1" min="1"></label>
         <button class="btn primary" id="addBtn">+ Add</button>
-      </div>
-      <div class="caps">
-        <div class="cap-grp">
-          <div class="cap-h">🏚️ Barn</div>
-          <label class="fld">Size<input type="number" id="capBarn" min="0" placeholder="e.g. 1000"></label>
-          <label class="fld">Full now<input type="number" id="fillBarn" min="0" placeholder="0"></label>
-        </div>
-        <div class="cap-grp">
-          <div class="cap-h">🌾 Silo</div>
-          <label class="fld">Size<input type="number" id="capSilo" min="0" placeholder="e.g. 1000"></label>
-          <label class="fld">Full now<input type="number" id="fillSilo" min="0" placeholder="0"></label>
-        </div>
-      </div>
-      <label class="invtoggle"><input type="checkbox" id="useInvFill"> “Full now” comes from my inventory</label>
-      <div class="row" style="margin-top:10px">
-        <button class="btn sm" id="saveCap">Save sizes</button>
         <span style="flex:1"></span>
         <button class="btn sm" id="copyBtn">📋 Copy list</button>
         <button class="btn sm ghost" id="clearBtn">Clear</button>
@@ -497,6 +495,7 @@
       <div id="listItems"></div>
       <div class="empty" id="listEmpty">Your list is empty. Add goods above, or hit “+ List” on any item in Browse.</div>
     </div>
+  
   </section>
 
   <div class="foot">
@@ -512,13 +511,9 @@
     <button data-tab="profit">
       <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v5h-5"/></svg></span>Profit</button>
     <button data-tab="unlocks">
-      <span class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg></span>Unlocks</button>
-    <button data-tab="planner">
-      <span class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h3M13 11h3M8 15h3M13 15h3"/></svg></span>Planner</button>
-    <button data-tab="inventory">
-      <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5v6l-9 5-9-5V9z"/><path d="M3 9l9 5 9-5"/><path d="M12 14v6"/></svg></span>Inventory<span class="badge" id="invCount"></span></button>
-    <button data-tab="list">
-      <span class="ico"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></span>List<span class="badge" id="listCount"></span></button>
+      <span class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg></span>Levels</button>
+    <button data-tab="work">
+      <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5v6l-9 5-9-5V9z"/><path d="M3 9l9 5 9-5"/><path d="M12 14v6"/></svg></span>Workbench<span class="badge" id="invCount"></span></button>
   </nav>
 </div>
 
@@ -740,7 +735,7 @@ function onData(){
   fillDatalist();
   renderBrowse();
   renderProfit();
-  if(!$("#tab-planner").classList.contains("hide")) renderPlanner();
+  if(!$("#tab-work").classList.contains("hide")){ renderInv(); renderPlanner(); renderList(); }
 }
 
 /* ----------------------------- helpers ------------------------------------ */
@@ -982,7 +977,7 @@ function renderList(){
 }
 function updateListCount(){
   const n=list.items.length;
-  $("#listCount").textContent = n ? String(n) : "";
+  { const lc=$("#listCount"); if(lc) lc.textContent = n ? String(n) : ""; }
 }
 function exportText(){
   const s=summarize();
@@ -1651,10 +1646,12 @@ let CURRENT_TAB = "browse";
 function switchTab(name){
   CURRENT_TAB = name;
   $$("#tabs button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
-  ["browse","profit","unlocks","planner","inventory","list"].forEach(t=>$("#tab-"+t).classList.toggle("hide", t!==name));
-  if(name==="list") renderList();
-  if(name==="planner") renderPlanner();
-  if(name==="inventory"){ renderInv(); renderShots(); refreshAIHint(); if(!shotsLoaded){ shotsLoaded=true; loadShots(); } }
+  ["browse","profit","unlocks","work"].forEach(t=>$("#tab-"+t).classList.toggle("hide", t!==name));
+  if(name==="work"){
+    renderInv(); renderShots(); refreshAIHint(); if(!shotsLoaded){ shotsLoaded=true; loadShots(); }
+    renderPlanner();
+    renderList();
+  }
 }
 
 /* ------------------------------- per-page help ---------------------------- */
@@ -1665,7 +1662,7 @@ const HELP = {
   profit: { title:"📈 Best Profit",
     what:"Goods ranked by how many coins per hour they make, so you can keep your machines on the most worthwhile orders.",
     how:["Scroll the ranking from most to least profitable.","Keep in mind longer-cooking goods tie up a machine for longer.","Tap + to add a good to your list."] },
-  unlocks: { title:"🔓 Level Unlocks",
+  unlocks: { title:"🔓 Levels",
     what:"What becomes available at each farm level — machines, buildings and the goods they make.",
     how:["Type a level in the box.","Tap “At this level” to see just what opens at that level, or “Up to this level” for everything available by then.","Handy for planning what to aim for as you level up."] },
   planner: { title:"📋 Recipe Planner",
@@ -1676,7 +1673,10 @@ const HELP = {
     how:["Tap ＋ Add to attach screenshots of your barn and silo (add as many as you like).","Tap “Read all with AI” to read every screenshot into your inventory at once — or tap a single screenshot and use its “Read with AI”.","Fix any counts by typing in the number box on each row (or use +/−).","Add items by hand below too. Tap “Use as List's Full now” to feed these totals into your barn/silo space math."] },
   list: { title:"✅ Needed Goods List",
     what:"Your personal checklist of what to collect, with live barn and silo space tracking. It's saved right on this device — no account needed.",
-    how:["Add a good and the amount you need.","Set your Barn and Silo size, plus how full each is right now — it shows the space left and warns if the list won't fit.","Check goods off as you collect them.","Tap “📋 Copy list” to share it with a friend or your neighborhood."] }
+    how:["Add a good and the amount you need.","Set your Barn and Silo size, plus how full each is right now — it shows the space left and warns if the list won't fit.","Check goods off as you collect them.","Tap “📋 Copy list” to share it with a friend or your neighborhood."] },
+  work: { title:"🧰 Workbench",
+    what:"Your whole loop on one screen: what you have, what you're making, and what's still to gather — all sharing the same barn & silo space math.",
+    how:["Set your Barn & Silo sizes up top; everything below uses them.","“What I have” — snap your barn/silo and let AI read it in, or add goods by hand.","“What to make” — add goods or scan truck/boat/town orders; it lists the raw ingredients still needed after subtracting your inventory.","“Checklist” — tick goods off as you collect them.","Any item the AI reads wrong: tap its thumbnail to fix it."] }
 };
 function openHelp(){
   const h = HELP[CURRENT_TAB] || HELP.browse;
