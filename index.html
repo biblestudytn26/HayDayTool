@@ -133,6 +133,21 @@
   .mg-bd-val{font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
   .mg-bd-tot{border-top:1px dashed var(--line2);padding-top:5px}
   .mg-bd-margin .mg-bd-nm,.mg-bd-margin .mg-bd-val{font-weight:800}
+  .bd-item{border-bottom:1px solid var(--line)}
+  .bd-item:last-child{border-bottom:0}
+  .bd-head{cursor:pointer}
+  .bd-caret{display:inline-block;font-size:10px;color:var(--muted);transition:transform .15s}
+  .bd-caret.open{transform:rotate(90deg)}
+  .bd-detail{padding:4px 4px 14px 50px}
+  .det-desc{margin:2px 0 11px;font-size:13.5px;line-height:1.5;color:var(--ink)}
+  .det-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:10px}
+  .det-f{display:flex;justify-content:space-between;gap:8px;font-size:13px;border-bottom:1px dotted var(--line2);padding-bottom:4px}
+  .det-k{color:var(--muted)} .det-v{font-weight:700;color:var(--ink);text-align:right}
+  .det-ing{background:#f4f8ef;border:1px solid var(--line2);border-radius:10px;padding:9px 11px}
+  .det-ing-h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin-bottom:6px}
+  .det-ing-row{display:flex;align-items:center;gap:8px;font-size:13px;padding:2px 0}
+  .det-ing-nm{flex:1;min-width:0;color:var(--ink)}
+  .det-ing-v{font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
   .empty{padding:34px 12px;text-align:center;color:var(--muted);font-size:14px}
 
   /* Checklist summary */
@@ -788,14 +803,54 @@ const collapsedGroups = new Set();
 const profNum = p => p==null ? "—" : Math.round(p).toLocaleString();
 const profCls = p => (p!=null && p<0) ? "prof-neg" : "prof-pos";
 function itemRow(i, meta){
-  return `<div class="item-row">
-    ${thumb(i.product)}
-    <div class="ir-main">
-      <div class="ir-name">${esc(i.product)}</div>
-      <div class="ir-meta">${meta}</div>
+  return `<div class="bd-item">
+    <div class="item-row bd-head" data-item="${esc(i.product)}">
+      ${thumb(i.product)}
+      <div class="ir-main">
+        <div class="ir-name">${esc(i.product)} <span class="bd-caret">▸</span></div>
+        <div class="ir-meta">${meta}</div>
+      </div>
+      <div class="ir-prof ${profCls(i.profit_per_hour)}">${profNum(i.profit_per_hour)}<small>coin/hr</small></div>
+      <button class="addbtn add" data-p="${esc(i.product)}" aria-label="Add to list">+</button>
     </div>
-    <div class="ir-prof ${profCls(i.profit_per_hour)}">${profNum(i.profit_per_hour)}<small>coin/hr</small></div>
-    <button class="addbtn add" data-p="${esc(i.product)}" aria-label="Add to list">+</button>
+    <div class="bd-detail hide"></div>
+  </div>`;
+}
+// Build words list: ["a","b","c"] -> "a, b and c"
+function listWords(a){ a=a.filter(Boolean); if(a.length<=1) return a[0]||""; return a.slice(0,-1).join(", ")+" and "+a[a.length-1]; }
+// Original, data-derived blurb (not copied from the wiki).
+function itemBlurb(d, m, store){
+  const where = store==="silo" ? "silo" : "barn";
+  const parts = [];
+  parts.push(`${d.product}${d.level!=null?` unlocks at level ${d.level}`:""} and is kept in your ${where}.`);
+  if(m.bd.length) parts.push(`It's made in the ${d.machine} from ${listWords(m.bd.map(b=>`${b.q>1?b.q+"× ":""}${b.name.toLowerCase()}`))}, ready in ${fmtTime(d.time_min)}.`);
+  else parts.push(`It's a raw ${d.machine.toLowerCase()} good, ready in ${fmtTime(d.time_min)}.`);
+  if(d.price!=null) parts.push(`It sells for up to ${profNum(d.price)} coins${d.xp!=null?` and gives ${profNum(d.xp)} XP`:""}${m.margin!=null?`, netting ${profNum(m.margin)} after ingredient cost`:""}.`);
+  return parts.join(" ");
+}
+function itemDetail(product){
+  const d = findInData(product); if(!d) return "";
+  const m = marginOf(d);
+  const store = storageOf(d.machine);
+  const facts = [
+    ["Building", esc(d.machine)],
+    ["Unlocks at", d.level!=null ? ("Level "+d.level) : "—"],
+    ["Sell price", d.price!=null ? (profNum(d.price)+" coins") : "—"],
+    ["Time", fmtTime(d.time_min)],
+    ["XP", d.xp!=null ? profNum(d.xp) : "—"],
+    ["Stored in", store==="silo" ? "🌾 Silo" : "🏚️ Barn"],
+    ["Margin", m.margin!=null ? (profNum(m.margin)+" coins") : "—"],
+    ["Margin / hr", m.mph!=null ? profNum(m.mph) : "—"],
+  ];
+  const ing = m.bd.length
+    ? `<div class="det-ing"><div class="det-ing-h">Made from</div>`
+      + m.bd.map(b=>`<div class="det-ing-row">${thumb(b.name,"thumb-xs")}<span class="det-ing-nm">${b.q}× ${esc(b.name)}</span><span class="det-ing-v">${profNum(b.sub)}</span></div>`).join("")
+      + `</div>`
+    : "";
+  return `<div class="det">
+    <p class="det-desc">${esc(itemBlurb(d, m, store))}</p>
+    <div class="det-facts">${facts.map(([k,v])=>`<div class="det-f"><span class="det-k">${k}</span><span class="det-v">${v}</span></div>`).join("")}</div>
+    ${ing}
   </div>`;
 }
 
@@ -1879,6 +1934,15 @@ $("#uUpto").addEventListener("click", ()=>renderUnlocks("upto"));
 // global "+ List" delegation
 document.body.addEventListener("click", e=>{
   const add=e.target.closest(".add"); if(add){ addToList(add.dataset.p, 1); }
+});
+// item-detail expand/collapse (Browse & Levels rows)
+document.body.addEventListener("click", e=>{
+  if(e.target.closest(".add")) return;          // let the + button do its thing
+  const row = e.target.closest(".bd-head"); if(!row) return;
+  const panel = row.parentElement.querySelector(".bd-detail"); if(!panel) return;
+  if(panel.classList.contains("hide")){ panel.innerHTML = itemDetail(row.dataset.item); panel.classList.remove("hide"); }
+  else { panel.classList.add("hide"); panel.innerHTML = ""; }
+  const c = row.querySelector(".bd-caret"); if(c) c.classList.toggle("open");
 });
 // list controls
 $("#addBtn").addEventListener("click", ()=>{
