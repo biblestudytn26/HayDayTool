@@ -703,31 +703,52 @@ async function fetchLive(){
   throw lastErr || new Error("unreachable");
 }
 
+// Latest goods data, served from the repo so new goods appear without a redeploy.
+const REMOTE_GOODS_URL = "https://raw.githubusercontent.com/biblestudytn26/haydaytool/main/data/goods.js";
+async function fetchRemoteGoods(){
+  const res = await fetch(REMOTE_GOODS_URL + "?t=" + Date.now(), { cache:"no-store" });
+  if(!res.ok) throw new Error("goods " + res.status);
+  const txt = await res.text();
+  const i = txt.indexOf("{"), j = txt.lastIndexOf("}");
+  if(i<0 || j<=i) throw new Error("bad goods file");
+  const obj = JSON.parse(txt.slice(i, j+1));
+  if(!obj || !Array.isArray(obj.items) || !obj.items.length) throw new Error("no items");
+  return obj.items;
+}
 async function loadData({ force=false } = {}){
-  // Primary source: goods bundled from the Hay Day Wiki Goods List (data/goods.js).
+  const cached  = readCache();
   const bundled = (window.HAYDAY_GOODS && Array.isArray(window.HAYDAY_GOODS.items)) ? window.HAYDAY_GOODS.items : null;
-  if(bundled && bundled.length){
-    DATA = normalize(bundled);
-    onData();
-    setStatus(`<b>${DATA.length}</b> goods · Hay Day Wiki`, false);
+
+  if(force){
+    // Explicit Refresh: pull the newest goods from the repo.
+    setStatus(`<span class="spinner"></span> Refreshing…`, false);
+    try{
+      const items = normalize(await fetchRemoteGoods());
+      DATA = items; writeCache(DATA); onData();
+      setStatus(`<b>${DATA.length}</b> goods · refreshed just now`, false);
+      toast("Data refreshed");
+    }catch(e){
+      const fb = (cached && cached.data && cached.data.length) ? cached.data : (bundled ? normalize(bundled) : []);
+      if(fb.length){ DATA = fb; onData(); setStatus(`<b>${DATA.length}</b> goods · couldn't refresh (showing saved)`, true); }
+      else setStatus(`Couldn't load data — check connection, then Refresh`, true);
+    }
     return;
   }
-  // Fallback: live fetch (only if the bundle failed to load).
-  const cached = readCache();
-  setStatus(`<span class="spinner"></span> Loading data…`, false);
+
+  // First paint: show the freshest thing we already have (cache, else bundled) instantly.
+  const seed = (cached && cached.data && cached.data.length) ? cached.data : (bundled ? normalize(bundled) : null);
+  if(seed){ DATA = seed; onData(); setStatus(`<b>${DATA.length}</b> goods · Hay Day Wiki`, false); }
+
+  // Then quietly check the repo for newer data.
   try{
-    const raw = await fetchLive();
-    DATA = normalize(raw);
-    writeCache(DATA);
-    onData();
-    setStatus(`<b>${DATA.length}</b> items · live just now`, false);
-  }catch(e){
-    if(cached){
-      DATA = cached.data; onData();
-      setStatus(`<b>${DATA.length}</b> items · showing saved copy (live fetch failed)`, true);
-    }else{
-      setStatus(`Couldn't load data — check connection, then Refresh`, true);
+    const items = normalize(await fetchRemoteGoods());
+    if(items.length && (!DATA.length || items.length !== DATA.length || JSON.stringify(items)!==JSON.stringify(DATA))){
+      DATA = items; onData();
     }
+    if(items.length) writeCache(items);
+    setStatus(`<b>${DATA.length}</b> goods · Hay Day Wiki`, false);
+  }catch(e){
+    if(!seed && bundled){ DATA = normalize(bundled); onData(); setStatus(`<b>${DATA.length}</b> goods · Hay Day Wiki`, false); }
   }
 }
 

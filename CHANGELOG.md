@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.21.0] - 2026-11-24
+
+### Changed
+- **Refresh now pulls live data.** The ↻ button fetches the latest goods file
+  from the repo (raw, cache-busted), so newly-added goods show up without a
+  redeploy or full reload. On load the app shows bundled/cached data instantly,
+  then quietly updates if the repo has newer data. Falls back to bundled data
+  when offline.
+
 ## [2.20.0] - 2026-11-24
 
 ### Added
