@@ -453,6 +453,7 @@
       <div class="row" style="margin-top:10px">
         <button class="btn sm primary" id="invReadAll">✨ Read all with AI</button>
         <button class="btn sm ghost" id="aiSetupBtn">Set up</button>
+        <button class="btn sm ghost hide" id="shotsClear">🗑️ Clear shots</button>
         <span class="sub" id="aiStateHint" style="flex:1;margin:0;align-self:center"></span>
       </div>
       <div class="sv-status" id="invAiStatus" style="margin-top:6px"></div>
@@ -1314,11 +1315,18 @@ async function delShot(id){
   const s=SHOTS.find(x=>x.id===id); if(s){ try{ URL.revokeObjectURL(s.url); }catch(e){} }
   SHOTS=SHOTS.filter(x=>x.id!==id); renderShots();
 }
+async function clearShots(){
+  if(!SHOTS.length) return;
+  if(!confirm(`Remove all ${SHOTS.length} screenshot${SHOTS.length>1?"s":""}? This won't change the items already in your inventory.`)) return;
+  for(const s of SHOTS){ try{ URL.revokeObjectURL(s.url); }catch(e){} await idbDel(s.id); }
+  SHOTS=[]; renderShots(); setInvAiStatus("",""); toast("Screenshots cleared");
+}
 function renderShots(){
   const strip=$("#shotStrip"); if(!strip) return;
   strip.innerHTML = SHOTS.map((s,i)=>
     `<div class="shot" data-shot="${i}"><img src="${s.url}" alt="Screenshot ${i+1}"><button class="del" data-shotdel="${esc(s.id)}" aria-label="Delete">×</button></div>`
   ).join("") + `<button class="shot-add" id="shotAddBtn"><span>＋</span>Add</button>`;
+  const cb=$("#shotsClear"); if(cb) cb.classList.toggle("hide", !SHOTS.length);
 }
 function openShot(i){
   if(!SHOTS.length) return;
@@ -2061,6 +2069,7 @@ $("#aiKeyClear").addEventListener("click", ()=>{
   $("#aiKeyInput").value=""; refreshAIHint(); toast("Turned off");
 });
 $("#invReadAll").addEventListener("click", batchReadAll);
+$("#shotsClear").addEventListener("click", clearShots);
 function bindUnmatched(host){
   if(!host) return;
   host.addEventListener("click", e=>{
