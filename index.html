@@ -704,7 +704,7 @@ async function fetchLive(){
 }
 
 // Latest goods data, served from the repo so new goods appear without a redeploy.
-const REMOTE_GOODS_URL = "https://raw.githubusercontent.com/biblestudytn26/haydaytool/main/data/goods.js";
+const REMOTE_GOODS_URL = "https://raw.githubusercontent.com/biblestudytn26/HayDayTool/main/data/goods.js";
 async function fetchRemoteGoods(){
   const res = await fetch(REMOTE_GOODS_URL + "?t=" + Date.now(), { cache:"no-store" });
   if(!res.ok) throw new Error("goods " + res.status);
