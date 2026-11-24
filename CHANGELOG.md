@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.22.0] - 2026-11-24
+
+### Added
+- **Automatic weekly goods update.** A scheduled GitHub Action re-pulls the Hay
+  Day goods dataset, rebuilds data/goods.js, downloads any new item thumbnails,
+  and commits changes — so new goods appear via Refresh with no manual work.
+  Runnable on demand from the Actions tab. Build logic lives in
+  scripts/build-goods.mjs.
+
 ## [2.21.0] - 2026-11-24
 
 ### Changed
