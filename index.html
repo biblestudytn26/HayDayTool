@@ -499,10 +499,12 @@
       </div>
       <div class="row" style="margin-top:10px">
         <button class="btn sm primary" id="planScan">📷 Scan orders with AI</button>
+        <button class="btn sm primary" id="visScan">🏘️ Scan town requests</button>
         <span class="sv-status" id="planScanStatus" style="flex:1"></span>
       </div>
       <input type="file" id="planScanInput" accept="image/*" multiple hidden>
-      <div class="tip" style="margin-top:7px;font-size:12px;color:var(--muted)">💡 Order icons are tiny on a full screen. For the most accurate reads, crop or zoom to just the order you're scanning before uploading.</div>
+      <input type="file" id="visScanInput" accept="image/*" multiple hidden>
+      <div class="tip" style="margin-top:7px;font-size:12px;color:var(--muted)">💡 <b>Scan orders</b>: truck/boat/town orders — crop to the order for the best read. <b>Scan town requests</b>: add your Town Visitor Requests screenshots and it adds only the goods you're short on (with the right counts) to both your checklist and this planner.</div>
       <div id="planReview"></div>
       <div id="planTargets"></div>
       <label class="invtoggle"><input type="checkbox" id="planUseInv" checked> Subtract what I already have in inventory</label>
@@ -1580,6 +1582,47 @@ async function scanOrders(files){
     added ? "" : "err");
   btn.disabled=false;
 }
+/* Town Visitor Requests: read the requests screen, add only the goods you're
+   SHORT on (shortfall = needed − have) to BOTH the checklist and the planner. */
+async function scanVisitors(files){
+  const pw=getPw();
+  if(!pw){ toast("Enter the access password first"); openAIKey(); return; }
+  files=files.filter(f=>f.type && f.type.startsWith("image/"));
+  if(!files.length) return;
+  const btn=$("#visScan"); if(btn) btn.disabled=true;
+  $("#planReview").innerHTML="";
+  let failed=0, lastErr=""; const unmatched=[]; const addedNames={};
+  for(let i=0;i<files.length;i++){
+    setPlanScanStatus(`Reading requests ${i+1} of ${files.length}…`,"busy");
+    try{
+      let blob; try{ blob=await downscaleImage(files[i],1568,.9); }catch(e){ blob=files[i]; }
+      const b64=await blobToB64(blob);
+      const items=await callVisionViaProxy(b64, blob.type||"image/jpeg", pw, "visitor");
+      for(const x of items){
+        const raw=String(x && x.name||"").trim(); if(!raw) continue;
+        const qty=Math.max(1,Math.floor(+(x && x.qty)||1));   // shortfall from the proxy
+        let canon=canonicalName(raw);
+        if(!canon){ unmatched.push({name:raw, qty}); continue; }
+        if(aiVerifyOn()){ try{ setPlanScanStatus(`Double-checking look-alikes…`,"busy"); canon=await verifyItemName(b64, blob.type||"image/jpeg", canon); }catch(e){} }
+        const ex=planTargets.find(t=>t.name.toLowerCase()===canon.toLowerCase());
+        if(ex) ex.qty+=qty; else planTargets.push({ name:canon, qty });   // planner
+        addToList(canon, qty, true);                                      // checklist (sums per good)
+        addedNames[canon]=(addedNames[canon]||0)+qty;
+      }
+    }catch(e){ failed++; lastErr=String(e.message||e); }
+  }
+  $("#planUseInv").checked=true;
+  saveList(); renderPlanner(); renderList(); updateListCount();
+  const uniq=Object.keys(addedNames).length;
+  if(unmatched.length){
+    $("#planReview").innerHTML = `<div class="cover-note" style="background:#f6e2d6;color:#b4542a;margin-top:10px">Couldn't match: ${unmatched.map(u=>esc(u.qty+"× "+u.name)).join(", ")} — add those by hand.</div>`;
+  }
+  setPlanScanStatus(
+    uniq ? `Added ${uniq} good${uniq===1?"":"s"} you're short on — on your checklist & planner${failed?` · ${failed} failed`:""}`
+         : (failed ? lastErr : "Nothing short — every request is already covered ✓"),
+    uniq ? "" : (failed?"err":""));
+  if(btn) btn.disabled=false;
+}
 function setInvAiStatus(msg, kind){ const el=$("#invAiStatus"); if(el){ el.textContent=msg||""; el.className="sv-status"+(kind?" "+kind:""); } }
 async function batchReadAll(){
   const pw=getPw();
@@ -2124,6 +2167,8 @@ $("#planClear").addEventListener("click", ()=>{ planTargets=[]; renderPlanner();
 $("#planUseInv").addEventListener("change", renderPlanner);
 $("#planScan").addEventListener("click", ()=>{ if(!getPw()){ toast("Enter the access password first"); openAIKey(); return; } $("#planScanInput").click(); });
 $("#planScanInput").addEventListener("change", e=>{ const f=[...e.target.files]; e.target.value=""; if(f.length) scanOrders(f); });
+$("#visScan").addEventListener("click", ()=>{ if(!getPw()){ toast("Enter the access password first"); openAIKey(); return; } $("#visScanInput").click(); });
+$("#visScanInput").addEventListener("change", e=>{ const f=[...e.target.files]; e.target.value=""; if(f.length) scanVisitors(f); });
 
 // go
 updateListCount();
