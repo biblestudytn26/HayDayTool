@@ -1,0 +1,12 @@
+{
+  "categories": {
+    "Products": 3,
+    "Crops": 2,
+    "Goods": 0
+  },
+  "stragglers": [
+    "Crops",
+    "Goods List",
+    "Products"
+  ]
+}
