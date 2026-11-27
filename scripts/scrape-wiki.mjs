@@ -54,6 +54,13 @@ async function apiParseHtml(page) {
   const j = await r.json();
   return j?.parse?.text || "";
 }
+// generic api.php query: pass a params object, get back the parsed JSON
+async function api(params) {
+  const qs = new URLSearchParams({ format: "json", formatversion: "2", ...params }).toString();
+  const r = await fetch(`${WIKI}/api.php?${qs}`, { headers: UA });
+  if (!r.ok) throw new Error(`api ${params.action} ${r.status}`);
+  return r.json();
+}
 
 async function main() {
   // ---------- PHASE A: Goods List ----------
@@ -137,31 +144,57 @@ async function main() {
   fs.writeFileSync(path.join(ROOT, "data", "recipes.js"), "window.HAYDAY_RECIPES = " + JSON.stringify({ meta: { source: WIKI + "/wiki/Goods_List", itemCount: Object.keys(recipes).length }, items: recipes }) + ";\n");
   console.log(`Wrote ${goods.length} goods, ${Object.keys(recipes).length} recipes. New items: ${newCount}`);
 
-  // ---------- PHASE B discovery: find stragglers not in the Goods List ----------
-  const goodsKeys = new Set(scraped.map((s) => normKey(s.product)));
-  const catReport = { categories: {}, stragglers: [] };
-  for (const cat of ["Products", "Crops", "Goods"]) {
-    try {
-      let members = [], cont = "";
-      do {
-        const u = `${WIKI}/api.php?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(cat)}&cmlimit=500&cmtype=page&format=json&formatversion=2${cont ? "&cmcontinue=" + encodeURIComponent(cont) : ""}`;
-        const r = await fetch(u, { headers: UA });
-        if (!r.ok) break;
-        const j = await r.json();
-        members = members.concat((j?.query?.categorymembers || []).map((m) => m.title));
-        cont = j?.continue?.cmcontinue || "";
-      } while (cont && members.length < 2000);
-      catReport.categories[cat] = members.length;
-      for (const title of members) if (!goodsKeys.has(normKey(title)) && !/:/.test(title)) catReport.stragglers.push(title);
-    } catch (e) { catReport.categories[cat] = "err: " + e.message; }
-  }
-  catReport.stragglers = [...new Set(catReport.stragglers)].sort();
-  fs.writeFileSync(path.join(DEBUG, "stragglers.json"), JSON.stringify(catReport, null, 2));
-  console.log("Stragglers (in a goods category, not in Goods List):", catReport.stragglers.length);
+  // ---------- PHASE B discovery diagnostics ----------
+  // Goal: (1) find the REAL category used by item pages, so we can enumerate
+  // stragglers automatically; (2) resolve the exact "Mussel linguine" title and
+  // dump its page HTML so the infobox parser can be built.
+  const discover = {};
 
-  // Dump a sample item page so the infobox parser can be built locally.
-  try { fs.writeFileSync(path.join(DEBUG, "sample_item.html"), (await apiParseHtml("Mussel_linguine")).slice(0, 600000)); }
-  catch (e) { fs.writeFileSync(path.join(DEBUG, "sample_item.html"), "fetch failed: " + e.message); }
+  // 1a. opensearch (title autocomplete) for the known-missing item
+  try { discover.opensearch = await api({ action: "opensearch", search: "Mussel linguine", limit: "10", namespace: "0" }); }
+  catch (e) { discover.opensearch = "err: " + e.message; }
+
+  // 1b. full-text search for it
+  try {
+    const j = await api({ action: "query", list: "search", srsearch: "Mussel linguine", srnamespace: "0", srlimit: "10" });
+    discover.search = (j?.query?.search || []).map((h) => h.title);
+  } catch (e) { discover.search = "err: " + e.message; }
+
+  // 1c. resolve redirects / normalization on the guessed title
+  try {
+    const j = await api({ action: "query", titles: "Mussel linguine", redirects: "1", prop: "info" });
+    discover.resolve = j?.query || j;
+  } catch (e) { discover.resolve = "err: " + e.message; }
+
+  // 2. categories of KNOWN item pages → learn the real goods category name
+  discover.knownItemCategories = {};
+  for (const known of ["Bacon pie", "Apple pie", "Fish burger"]) {
+    try {
+      const j = await api({ action: "query", titles: known, prop: "categories", cllimit: "50", clshow: "!hidden" });
+      const pg = (j?.query?.pages || [])[0];
+      discover.knownItemCategories[known] = (pg?.categories || []).map((c) => c.title);
+    } catch (e) { discover.knownItemCategories[known] = "err: " + e.message; }
+  }
+
+  // 3. best-guess title for mussel linguine, then dump its page HTML + categories
+  let mTitle = null;
+  if (Array.isArray(discover.opensearch) && discover.opensearch[1]?.length) mTitle = discover.opensearch[1][0];
+  else if (Array.isArray(discover.search) && discover.search.length) mTitle = discover.search[0];
+  discover.chosenTitle = mTitle;
+  if (mTitle) {
+    try {
+      const j = await api({ action: "query", titles: mTitle, prop: "categories", cllimit: "50", clshow: "!hidden" });
+      const pg = (j?.query?.pages || [])[0];
+      discover.chosenCategories = (pg?.categories || []).map((c) => c.title);
+    } catch (e) { discover.chosenCategories = "err: " + e.message; }
+    try { fs.writeFileSync(path.join(DEBUG, "sample_item.html"), (await apiParseHtml(mTitle)).slice(0, 400000)); }
+    catch (e) { fs.writeFileSync(path.join(DEBUG, "sample_item.html"), "parse failed: " + e.message); }
+  } else {
+    fs.writeFileSync(path.join(DEBUG, "sample_item.html"), "no title found for Mussel linguine");
+  }
+
+  fs.writeFileSync(path.join(DEBUG, "discover.json"), JSON.stringify(discover, null, 2));
+  console.log("Discovery: chosenTitle =", mTitle, "| known-item cats sample:", JSON.stringify(discover.knownItemCategories["Bacon pie"]));
 }
 
 main().catch((e) => { fs.writeFileSync(path.join(DEBUG, "error.txt"), String(e && e.stack || e)); console.error(e); process.exit(1); });
