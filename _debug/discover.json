@@ -1,0 +1,69 @@
+{
+  "opensearch": [
+    "Mussel linguine",
+    [
+      "Mussel Linguine",
+      "Mussel Meat",
+      "Fresh Pasta",
+      "Pasta Kitchen",
+      "Products",
+      "Olive Oil",
+      "Garlic"
+    ],
+    [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "https://hayday.fandom.com/wiki/Mussel_Linguine",
+      "https://hayday.fandom.com/wiki/Mussel_Meat",
+      "https://hayday.fandom.com/wiki/Fresh_Pasta",
+      "https://hayday.fandom.com/wiki/Pasta_Kitchen",
+      "https://hayday.fandom.com/wiki/Products",
+      "https://hayday.fandom.com/wiki/Olive_Oil",
+      "https://hayday.fandom.com/wiki/Garlic"
+    ]
+  ],
+  "search": [
+    "Mussel Linguine",
+    "Mussel Meat",
+    "Fresh Pasta",
+    "Pasta Kitchen",
+    "Products",
+    "Olive Oil",
+    "Garlic"
+  ],
+  "resolve": {
+    "pages": [
+      {
+        "ns": 0,
+        "title": "Mussel linguine",
+        "missing": true,
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "pagelanguagehtmlcode": "en",
+        "pagelanguagedir": "ltr"
+      }
+    ]
+  },
+  "knownItemCategories": {
+    "Bacon pie": [],
+    "Apple pie": [
+      "Category:Candidates for deletion"
+    ],
+    "Fish burger": []
+  },
+  "chosenTitle": "Mussel Linguine",
+  "chosenCategories": [
+    "Category:Fresh Pasta Products",
+    "Category:Garlic Products",
+    "Category:Mussel Meat Products",
+    "Category:Olive Oil Products",
+    "Category:Pasta Kitchen Products"
+  ]
+}
