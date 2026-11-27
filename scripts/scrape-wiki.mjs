@@ -61,6 +61,52 @@ async function api(params) {
   if (!r.ok) throw new Error(`api ${params.action} ${r.status}`);
   return r.json();
 }
+// all page titles in a category (mainspace pages only, follows continuation)
+async function categoryMembers(cat) {
+  let members = [], cont = "";
+  do {
+    const j = await api({ action: "query", list: "categorymembers", cmtitle: "Category:" + cat, cmlimit: "500", cmtype: "page", ...(cont ? { cmcontinue: cont } : {}) });
+    members = members.concat((j?.query?.categorymembers || []).map((m) => m.title));
+    cont = j?.continue?.cmcontinue || "";
+  } while (cont && members.length < 3000);
+  return members.filter((t) => !/:/.test(t)); // drop non-mainspace
+}
+// parse one item page into the same row shape as a Goods List row, or null
+async function parseItemPage(title) {
+  const html = await apiParseHtml(title);
+  if (!html) return null;
+  const $ = load(html);
+  const num = (s) => { const m = String(s).replace(/,/g, "").match(/\d+/g); return m ? +m[m.length - 1] : null; };
+  const firstNum = (s) => { const m = String(s).replace(/,/g, "").match(/\d+/); return m ? +m[0] : null; };
+  let level = null, price = null, time_min = null, xp = null, machine = null;
+  $(".pi-data").each((_, el) => {
+    const label = clean($(el).find(".pi-data-label").text());
+    const valEl = $(el).find(".pi-data-value");
+    const val = clean(valEl.text());
+    const alt = clean(valEl.find("img").first().attr("alt")).toLowerCase();
+    if (/lvl|level/i.test(val)) { if (level == null) level = num(val); }
+    else if (/^source/i.test(label)) { if (!machine) machine = val || clean(valEl.find("a").first().text()); }
+    else if (alt === "coin" && price == null && /\d/.test(val)) price = num(val);   // "1 to 583" -> 583
+    else if (alt === "time" && time_min == null) time_min = parseTime(val);
+    else if (alt === "xp" && xp == null && /^[^0-9]*\d+[^0-9]*$/.test(val)) xp = firstNum(val);
+  });
+  // ingredients: a table whose first row is ingredient icons and whose next row is xN quantities
+  const needs = [];
+  $("table").each((_, el) => {
+    if (needs.length) return;
+    const trs = $(el).find("tr").toArray();
+    if (trs.length < 2) return;
+    const names = $(trs[0]).find("td,th").map((__, td) => clean($(td).find("img").attr("alt"))).get();
+    const qtys = $(trs[1]).find("td,th").map((__, td) => clean($(td).text())).get();
+    const haveNames = names.filter(Boolean).length;
+    const allQty = qtys.length && qtys.every((q) => /^x\s*\d+$/i.test(q));
+    if (haveNames >= 1 && allQty && names.length === qtys.length) {
+      for (let i = 0; i < names.length; i++) if (names[i]) needs.push({ name: names[i], qty: num(qtys[i]) });
+    }
+  });
+  if (!machine) machine = "Other";
+  return { product: clean(title), level, price, time_min, xp, needs, machine: machineOf(machine) };
+}
 
 async function main() {
   // ---------- PHASE A: Goods List ----------
@@ -86,6 +132,41 @@ async function main() {
     });
   }
   if (scraped.length < 400) throw new Error(`Only ${scraped.length} goods parsed — aborting (guard).`);
+
+  // ---------- Straggler discovery: brand-new items not yet in the Goods List ----------
+  // New item pages carry per-machine "<Machine> Products" categories (e.g. Mussel
+  // Linguine -> Category:Pasta Kitchen Products). Enumerate those, diff against the
+  // Goods List, and fold any extras into `scraped` so the build loop below treats
+  // them identically to Goods-List rows.
+  const strag = { scanned: {}, found: [], added: [], skipped: [] };
+  try {
+    const goodsKeys = new Set(scraped.map((s) => normKey(s.product)));
+    const machines = [...new Set(scraped.map((s) => s.machine))].filter((m) => !SILO.has(m.toLowerCase()) && !/animal products/i.test(m));
+    const candidates = new Map(); // normKey -> title
+    for (const m of machines) {
+      try {
+        const members = await categoryMembers(`${m} Products`);
+        strag.scanned[m] = members.length;
+        for (const t of members) if (!goodsKeys.has(normKey(t))) candidates.set(normKey(t), t);
+      } catch (e) { strag.scanned[m] = "err: " + e.message; }
+    }
+    strag.found = [...candidates.values()].sort();
+    for (const title of candidates.values()) {
+      try {
+        const row = await parseItemPage(title);
+        // only fold in a well-formed craftable item
+        if (row && row.level != null && row.price != null && row.time_min != null && row.needs.length) {
+          scraped.push(row);
+          goodsKeys.add(normKey(row.product));
+          strag.added.push(`${row.product} (L${row.level}, ${row.price}c, ${row.needs.length} ing)`);
+        } else {
+          strag.skipped.push(`${title}: ${row ? `lvl=${row.level} price=${row.price} time=${row.time_min} ing=${row.needs.length}` : "no page"}`);
+        }
+      } catch (e) { strag.skipped.push(`${title}: ${e.message}`); }
+    }
+  } catch (e) { strag.error = String(e && e.stack || e); }
+  fs.writeFileSync(path.join(DEBUG, "stragglers.json"), JSON.stringify(strag, null, 2));
+  console.log(`Stragglers: found ${strag.found.length}, added ${strag.added.length}`, strag.added);
 
   // Preserve existing names + images (keyed diacritic-insensitively).
   const curPath = path.join(ROOT, "data", "goods.js");
@@ -144,57 +225,6 @@ async function main() {
   fs.writeFileSync(path.join(ROOT, "data", "recipes.js"), "window.HAYDAY_RECIPES = " + JSON.stringify({ meta: { source: WIKI + "/wiki/Goods_List", itemCount: Object.keys(recipes).length }, items: recipes }) + ";\n");
   console.log(`Wrote ${goods.length} goods, ${Object.keys(recipes).length} recipes. New items: ${newCount}`);
 
-  // ---------- PHASE B discovery diagnostics ----------
-  // Goal: (1) find the REAL category used by item pages, so we can enumerate
-  // stragglers automatically; (2) resolve the exact "Mussel linguine" title and
-  // dump its page HTML so the infobox parser can be built.
-  const discover = {};
-
-  // 1a. opensearch (title autocomplete) for the known-missing item
-  try { discover.opensearch = await api({ action: "opensearch", search: "Mussel linguine", limit: "10", namespace: "0" }); }
-  catch (e) { discover.opensearch = "err: " + e.message; }
-
-  // 1b. full-text search for it
-  try {
-    const j = await api({ action: "query", list: "search", srsearch: "Mussel linguine", srnamespace: "0", srlimit: "10" });
-    discover.search = (j?.query?.search || []).map((h) => h.title);
-  } catch (e) { discover.search = "err: " + e.message; }
-
-  // 1c. resolve redirects / normalization on the guessed title
-  try {
-    const j = await api({ action: "query", titles: "Mussel linguine", redirects: "1", prop: "info" });
-    discover.resolve = j?.query || j;
-  } catch (e) { discover.resolve = "err: " + e.message; }
-
-  // 2. categories of KNOWN item pages → learn the real goods category name
-  discover.knownItemCategories = {};
-  for (const known of ["Bacon pie", "Apple pie", "Fish burger"]) {
-    try {
-      const j = await api({ action: "query", titles: known, prop: "categories", cllimit: "50", clshow: "!hidden" });
-      const pg = (j?.query?.pages || [])[0];
-      discover.knownItemCategories[known] = (pg?.categories || []).map((c) => c.title);
-    } catch (e) { discover.knownItemCategories[known] = "err: " + e.message; }
-  }
-
-  // 3. best-guess title for mussel linguine, then dump its page HTML + categories
-  let mTitle = null;
-  if (Array.isArray(discover.opensearch) && discover.opensearch[1]?.length) mTitle = discover.opensearch[1][0];
-  else if (Array.isArray(discover.search) && discover.search.length) mTitle = discover.search[0];
-  discover.chosenTitle = mTitle;
-  if (mTitle) {
-    try {
-      const j = await api({ action: "query", titles: mTitle, prop: "categories", cllimit: "50", clshow: "!hidden" });
-      const pg = (j?.query?.pages || [])[0];
-      discover.chosenCategories = (pg?.categories || []).map((c) => c.title);
-    } catch (e) { discover.chosenCategories = "err: " + e.message; }
-    try { fs.writeFileSync(path.join(DEBUG, "sample_item.html"), (await apiParseHtml(mTitle)).slice(0, 400000)); }
-    catch (e) { fs.writeFileSync(path.join(DEBUG, "sample_item.html"), "parse failed: " + e.message); }
-  } else {
-    fs.writeFileSync(path.join(DEBUG, "sample_item.html"), "no title found for Mussel linguine");
-  }
-
-  fs.writeFileSync(path.join(DEBUG, "discover.json"), JSON.stringify(discover, null, 2));
-  console.log("Discovery: chosenTitle =", mTitle, "| known-item cats sample:", JSON.stringify(discover.knownItemCategories["Bacon pie"]));
 }
 
 main().catch((e) => { fs.writeFileSync(path.join(DEBUG, "error.txt"), String(e && e.stack || e)); console.error(e); process.exit(1); });
