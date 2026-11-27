@@ -1494,31 +1494,42 @@ async function readShotWithAI(){
     const parsed = items.map(x=>{
       const rawName=String(x && x.name||"").trim();
       const canon=canonicalName(rawName);
-      return { name: canon || rawName, matched: !!canon, qty:Math.max(1,Math.floor(+(x && x.qty)||1)) };
+      return { name: canon || rawName, matched: !!canon, qty:Math.max(0,Math.floor(+(x && x.qty)||0)) };
     }).filter(x=>x.name);
     // Auto-add everything we could match straight into inventory
     const matched = parsed.filter(x=>x.matched);
     detUnmatched = parsed.filter(x=>!x.matched);
+    let lowAdded=0;   // items at a low count (0–2) flagged onto the checklist to restock
     for(const x of matched){
       let nm = x.name;
       if(aiVerifyOn()){ try{ setSvStatus("Double-checking look-alikes…","busy"); nm = await verifyItemName(b64, blob.type||"image/jpeg", x.name); }catch(e){} }
-      addToInv(nm, x.qty, true);
+      if(x.qty>=1) addToInv(nm, x.qty, true);          // record the true count in inventory
+      if(x.qty<=2){                                     // low stock → onto the list to make / delete
+        const li = findInData(nm);
+        if(li && !list.items.find(z=>z.product.toLowerCase()===li.product.toLowerCase())){
+          list.items.push({ product:li.product, machine:li.machine, amount:1, checked:false });
+          lowAdded++;
+        }
+      }
     }
-    renderInv(); updateInvCount();
-    renderUnmatched($("#svDetected"), matched.length);
+    if(lowAdded){ saveList(); }
+    renderInv(); updateInvCount(); renderList(); updateListCount();
+    renderUnmatched($("#svDetected"), matched.length, lowAdded);
+    const lowNote = lowAdded?` · ${lowAdded} low-stock to your list`:"";
     setSvStatus(matched.length
-      ? `Added ${matched.length} to inventory${detUnmatched.length?` · ${detUnmatched.length} to review`:""}`
+      ? `Added ${matched.length} to inventory${lowNote}${detUnmatched.length?` · ${detUnmatched.length} to review`:""}`
       : (detUnmatched.length?"None matched — review below":"Nothing found"), matched.length?"":"err");
-    if(matched.length) toast(`Added ${matched.length} to inventory`);
+    if(matched.length) toast(`Added ${matched.length} to inventory${lowAdded?` · ${lowAdded} low to list`:""}`);
   }catch(e){
     setSvStatus(String(e.message||e), "err");
   }finally{ $("#svRead").disabled=false; }
 }
 function clearDetected(){ detUnmatched=[]; const el=$("#svDetected"); if(el) el.innerHTML=""; }
-function renderUnmatched(host, addedCount){
+function renderUnmatched(host, addedCount, lowAdded){
   if(!host) return;
   let html="";
   if(addedCount) html += `<div class="added-note">✓ Added ${addedCount} item${addedCount===1?"":"s"} to your inventory — adjust the counts on the list anytime.</div>`;
+  if(lowAdded) html += `<div class="added-note">📝 ${lowAdded} low-stock item${lowAdded===1?"":"s"} (0–2) added to your Checklist — set how many to make, or tap × to drop it.</div>`;
   if(detUnmatched.length){
     html += `<div class="lbl" style="margin-top:12px">Couldn't match these — tap Add to keep as-is</div>`;
     html += detUnmatched.map((x,i)=>`<div class="det" data-u="${i}">
