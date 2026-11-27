@@ -4,6 +4,8 @@ name: Scrape wiki goods
 # runners can reach it; the dev environment can't). Phase 1 writes a discovery
 # report to _debug/ so the parser can be finalized before it touches goods.js.
 on:
+  schedule:
+    - cron: "17 9 * * 1"   # Mondays ~09:17 UTC
   workflow_dispatch: {}
   push:
     paths:
@@ -33,8 +35,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add _debug data/goods.js assets/items 2>/dev/null || true
-          if [ -n "$(git status --porcelain _debug data/goods.js assets/items)" ]; then
+          git add _debug data/goods.js data/recipes.js assets/items 2>/dev/null || true
+          if [ -n "$(git status --porcelain _debug data/goods.js data/recipes.js assets/items)" ]; then
             git commit -m "scrape: wiki run ($(date -u +%FT%TZ))"
             git push
           else
