@@ -1,12 +1,75 @@
 {
-  "categories": {
-    "Products": 3,
-    "Crops": 2,
-    "Goods": 0
+  "scanned": {
+    "Feed Mill": 8,
+    "Bakery": 14,
+    "Dairy": 4,
+    "Sugar Mill": 3,
+    "Popcorn Pot": 6,
+    "BBQ Grill": 19,
+    "Pie Oven": 15,
+    "Loom": 6,
+    "Sewing Machine": 6,
+    "Cake Oven": 15,
+    "Mine": 5,
+    "Smelter": 5,
+    "Juice Press": 12,
+    "Lure Workbench": 6,
+    "Ice Cream Maker": 13,
+    "Net Maker": 4,
+    "Döner Kebab Stand": 3,
+    "Jam Maker": 11,
+    "Jeweler": 5,
+    "Honey Extractor": 2,
+    "Coffee Kiosk": 7,
+    "Soup Kitchen": 14,
+    "Candle Maker": 5,
+    "Flower Shop": 7,
+    "Candy Machine": 8,
+    "Sauce Maker": 10,
+    "Sushi Bar": 6,
+    "Salad Bar": 13,
+    "Sandwich Bar": 9,
+    "Smoothie Mixer": 9,
+    "Pasta Maker": 2,
+    "Essential Oils Lab": 3,
+    "Wok Kitchen": 5,
+    "Hat Maker": 4,
+    "Pasta Kitchen": 8,
+    "Hot Dog Stand": 4,
+    "Donut Maker": 6,
+    "Taco Kitchen": 5,
+    "Omelet Station": 5,
+    "Tea Stand": 10,
+    "Fondue Pot": 4,
+    "Bath Kiosk": 5,
+    "Deep Fryer": 6,
+    "Preservation Station": 5,
+    "Pottery Studio": 3,
+    "Fudge Shop": 5,
+    "Yogurt Maker": 4,
+    "Stew Pot": 3,
+    "Cupcake Maker": 4,
+    "Perfumerie": 3,
+    "Waffle Maker": 5,
+    "Porridge Bar": 3,
+    "Milkshake Bar": 3
   },
-  "stragglers": [
-    "Crops",
-    "Goods List",
-    "Products"
+  "found": [
+    "Grilled Mussels",
+    "Lure",
+    "Mussel Chowder",
+    "Mussel Linguine",
+    "Mussel Nigiri",
+    "Steamed Mussels"
+  ],
+  "added": [
+    "Grilled Mussels (L32, 370c, 4 ing)",
+    "Steamed Mussels (L27, 284c, 2 ing)",
+    "Mussel Chowder (L47, 626c, 4 ing)",
+    "Mussel Nigiri (L56, 543c, 3 ing)",
+    "Mussel Linguine (L73, 583c, 4 ing)"
+  ],
+  "skipped": [
+    "Lure: lvl=null price=null time=null ing=0"
   ]
 }
